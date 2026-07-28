@@ -1,0 +1,222 @@
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const getHeaders = (uid) => {
+  const headers = { 'Content-Type': 'application/json' };
+  if (uid) {
+    headers['x-user-uid'] = uid;
+  }
+  return headers;
+};
+
+export const api = {
+  // Auth
+  login: async (phone) => {
+    const res = await fetch(`${API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ phone })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Login failed');
+    }
+    return await res.json();
+  },
+
+  updateProfile: async (uid, profileData) => {
+    const res = await fetch(`${API_URL}/api/users/profile`, {
+      method: 'PUT',
+      headers: getHeaders(uid),
+      body: JSON.stringify(profileData)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to update profile');
+    }
+    return await res.json();
+  },
+
+  getMe: async (uid) => {
+    const res = await fetch(`${API_URL}/api/users/me`, {
+      headers: getHeaders(uid)
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  },
+
+  // Laborer Availability
+  setAvailability: async (uid, date, status) => {
+    const res = await fetch(`${API_URL}/api/laborers/availability`, {
+      method: 'PUT',
+      headers: getHeaders(uid),
+      body: JSON.stringify({ date, status })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to set availability');
+    }
+    return await res.json();
+  },
+
+  getAvailability: async (uid) => {
+    const res = await fetch(`${API_URL}/api/laborers/availability`, {
+      headers: getHeaders(uid)
+    });
+    if (!res.ok) return { status: 'AVAILABLE' };
+    return await res.json();
+  },
+
+  // Registered Laborers Directory
+  getLaborers: async (search = '', filter = 'all') => {
+    let url = `${API_URL}/api/laborers`;
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    if (filter === 'available') params.append('availability', 'Available');
+    if (params.toString()) url += `?${params.toString()}`;
+
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    return await res.json();
+  },
+
+  getLaborerByUid: async (uid) => {
+    const res = await fetch(`${API_URL}/api/laborers/${uid}`);
+    if (!res.ok) throw new Error('Laborer not found');
+    return await res.json();
+  },
+
+  // Jobs & Feed
+  createWorkAlert: async (uid, jobData) => {
+    const res = await fetch(`${API_URL}/api/jobs`, {
+      method: 'POST',
+      headers: getHeaders(uid),
+      body: JSON.stringify(jobData)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to create work alert');
+    }
+    return await res.json();
+  },
+
+  getTomorrowJobs: async (uid) => {
+    const res = await fetch(`${API_URL}/api/jobs/tomorrow`, {
+      headers: getHeaders(uid)
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  },
+
+  acceptJob: async (uid, jobId) => {
+    const res = await fetch(`${API_URL}/api/jobs/${jobId}/accept`, {
+      method: 'POST',
+      headers: getHeaders(uid)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to accept job');
+    }
+    return await res.json();
+  },
+
+  rejectJob: async (uid, jobId) => {
+    const res = await fetch(`${API_URL}/api/jobs/${jobId}/reject`, {
+      method: 'POST',
+      headers: getHeaders(uid)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to reject job');
+    }
+    return await res.json();
+  },
+
+  getHirerJobs: async (uid) => {
+    const res = await fetch(`${API_URL}/api/hirer/me/jobs`, {
+      headers: getHeaders(uid)
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  },
+
+  // Direct Bookings
+  sendBookingRequest: async (uid, bookingData) => {
+    const res = await fetch(`${API_URL}/api/bookings`, {
+      method: 'POST',
+      headers: getHeaders(uid),
+      body: JSON.stringify(bookingData)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to send booking request');
+    }
+    return await res.json();
+  },
+
+  getReceivedBookings: async (uid) => {
+    const res = await fetch(`${API_URL}/api/bookings/received`, {
+      headers: getHeaders(uid)
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  },
+
+  getMyBookings: async (uid) => {
+    const res = await fetch(`${API_URL}/api/bookings/my-bookings`, {
+      headers: getHeaders(uid)
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  },
+
+  acceptBooking: async (uid, bookingId) => {
+    const res = await fetch(`${API_URL}/api/bookings/${bookingId}/accept`, {
+      method: 'POST',
+      headers: getHeaders(uid)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to accept booking');
+    }
+    return await res.json();
+  },
+
+  rejectBooking: async (uid, bookingId) => {
+    const res = await fetch(`${API_URL}/api/bookings/${bookingId}/reject`, {
+      method: 'POST',
+      headers: getHeaders(uid)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to reject booking');
+    }
+    return await res.json();
+  },
+
+  // Notifications
+  getNotifications: async (uid) => {
+    const res = await fetch(`${API_URL}/api/notifications`, {
+      headers: getHeaders(uid)
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  },
+
+  markNotificationRead: async (uid, notificationId) => {
+    const res = await fetch(`${API_URL}/api/notifications/${notificationId}/read`, {
+      method: 'PUT',
+      headers: getHeaders(uid)
+    });
+    if (!res.ok) return { success: false };
+    return await res.json();
+  },
+
+  markAllNotificationsRead: async (uid) => {
+    const res = await fetch(`${API_URL}/api/notifications/read-all`, {
+      method: 'PUT',
+      headers: getHeaders(uid)
+    });
+    if (!res.ok) return { success: false };
+    return await res.json();
+  }
+};

@@ -2,6 +2,7 @@ import { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../App';
 import { Users, Tractor } from 'lucide-react';
+import { api } from '../services/api';
 
 export default function RoleSelection() {
   const [name, setName] = useState('');
@@ -16,18 +17,9 @@ export default function RoleSelection() {
     }
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/users/profile', {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-user-uid': user.uid
-        },
-        body: JSON.stringify({ role, name }),
-      });
-      
-      const data = await response.json();
+      const data = await api.updateProfile(user.uid, { role, name });
       setUser(data);
-      
+
       if (role === 'laborer') navigate('/laborer');
       else navigate('/owner');
     } catch (err) {
@@ -43,7 +35,7 @@ export default function RoleSelection() {
         <h2 className="text-2xl font-bold text-gray-800">Complete Profile</h2>
         <p className="text-gray-500 text-sm">Tell us who you are</p>
       </div>
-      
+
       <div className="bg-white p-6 rounded-2xl shadow-sm space-y-4">
         <label className="block text-sm font-semibold text-gray-700">Full Name</label>
         <input 
@@ -57,7 +49,7 @@ export default function RoleSelection() {
 
       <div className="space-y-4">
         <p className="text-center font-medium text-gray-600">I want to...</p>
-        
+
         <button 
           onClick={() => handleSelectRole('laborer')}
           disabled={loading}

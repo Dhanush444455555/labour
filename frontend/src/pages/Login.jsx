@@ -2,6 +2,8 @@ import { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../App';
 import { Phone, ArrowRight } from 'lucide-react';
+import { api } from '../services/api';
+import { joinUserRoom } from '../socket';
 
 export default function Login() {
   const [phone, setPhone] = useState('');
@@ -13,29 +15,22 @@ export default function Login() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
-    if (phone.replace(/\D/g, '').length < 10) {
-      setError('Please enter a valid 10-digit phone number.');
+    const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+    if (cleanPhone.length < 10) {
+      setError('Please enter a valid 10-digit Indian phone number.');
       return;
     }
     setLoading(true);
     try {
-      const cleanPhone = phone.replace(/\D/g, '').slice(-10);
-      const response = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: cleanPhone }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setError(data.error || 'Login failed');
-      } else {
-        setUser(data);
-        if (data.role === 'laborer') navigate('/laborer');
-        else if (data.role === 'farmowner') navigate('/owner');
-        else navigate('/role');
-      }
+      const data = await api.login(cleanPhone);
+      setUser(data);
+      joinUserRoom(data.uid);
+
+      if (data.role === 'laborer') navigate('/laborer');
+      else if (data.role === 'farmowner') navigate('/owner');
+      else navigate('/role');
     } catch (err) {
-      setError('Cannot connect to server. Is the backend running?');
+      setError(err.message || 'Cannot connect to server. Is the backend running?');
     }
     setLoading(false);
   };
@@ -43,7 +38,6 @@ export default function Login() {
   return (
     <div className="flex flex-col items-center justify-center flex-1 w-full space-y-8 animate-in fade-in zoom-in duration-500">
       <div className="bg-white p-8 rounded-2xl shadow-lg w-full text-center space-y-6">
-
         <div className="mx-auto bg-green-100 p-4 rounded-full inline-block">
           <Phone className="w-10 h-10 text-green-600" />
         </div>
@@ -67,7 +61,7 @@ export default function Login() {
             />
           </div>
 
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
 
           <button
             type="submit"
