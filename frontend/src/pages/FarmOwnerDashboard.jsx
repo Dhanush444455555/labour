@@ -3,11 +3,11 @@ import { AuthContext } from '../App';
 import HireLaborersPage from '../components/hire/HireLaborersPage';
 
 export default function FarmOwnerDashboard() {
-  const { user } = useContext(AuthContext);
+  const { user, setUser } = useContext(AuthContext);
 
   return (
     <div className="w-full">
-      <HireLaborersPage user={user} />
+      <HireLaborersPage user={user} onLogout={() => setUser(null)} />
     </div>
   );
 }

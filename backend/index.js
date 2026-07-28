@@ -371,6 +371,7 @@ app.get('/api/jobs/tomorrow', requireAuth, async (req, res) => {
         return {
           id: job.id,
           ownerName: job.hirer_name || 'Farm Owner',
+          ownerPhone: job.hirer_phone,
           workTitle: job.title,
           workerWage: job.wage,
           workDate: job.work_date,

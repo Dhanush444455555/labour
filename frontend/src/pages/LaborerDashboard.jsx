@@ -299,13 +299,21 @@ export default function LaborerDashboard() {
                           </button>
                         </>
                       ) : (
-                        <button
-                          disabled
-                          className="w-full bg-green-600 text-white font-bold py-3.5 px-4 rounded-xl shadow-xs flex items-center justify-center space-x-2 text-base cursor-not-allowed opacity-90"
-                        >
-                          <Check className="w-5 h-5" />
-                          <span>✓ Accepted</span>
-                        </button>
+                        <div className="flex w-full space-x-2">
+                          <div className="flex-1 bg-green-100 text-green-700 font-bold py-3.5 px-4 rounded-xl flex items-center justify-center space-x-2 text-sm border border-green-200">
+                            <Check className="w-4 h-4" />
+                            <span>Accepted</span>
+                          </div>
+                          {job.ownerPhone && (
+                            <a 
+                              href={`tel:${job.ownerPhone}`}
+                              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center space-x-1.5 text-sm"
+                            >
+                              <Phone className="w-4 h-4" />
+                              <span>Call Owner</span>
+                            </a>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>

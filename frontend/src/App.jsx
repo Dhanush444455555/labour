@@ -1,7 +1,7 @@
 import { useState, createContext, useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
-import RoleSelection from './pages/RoleSelection';
+
 import LaborerDashboard from './pages/LaborerDashboard';
 import FarmOwnerDashboard from './pages/FarmOwnerDashboard';
 
@@ -22,11 +22,10 @@ function App() {
           {/* Main Content */}
           <main className="flex-1 flex flex-col p-4 max-w-md mx-auto w-full">
             <Routes>
-              <Route path="/login" element={!user ? <Login /> : <Navigate to="/role" />} />
-              <Route path="/role" element={user ? <RoleSelection /> : <Navigate to="/login" />} />
-              <Route path="/laborer" element={user?.role === 'laborer' ? <LaborerDashboard /> : <Navigate to="/role" />} />
-              <Route path="/owner" element={user?.role === 'farmowner' ? <FarmOwnerDashboard /> : <Navigate to="/role" />} />
-              <Route path="*" element={<Navigate to="/login" />} />
+              <Route path="/login" element={!user ? <Login /> : <Navigate to={user.role === 'laborer' ? "/laborer" : "/owner"} replace />} />
+              <Route path="/laborer" element={user ? (user.role === 'laborer' ? <LaborerDashboard /> : <Navigate to="/owner" replace />) : <Navigate to="/login" replace />} />
+              <Route path="/owner" element={user ? (user.role === 'farmowner' ? <FarmOwnerDashboard /> : <Navigate to="/laborer" replace />) : <Navigate to="/login" replace />} />
+              <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
           </main>
         </div>

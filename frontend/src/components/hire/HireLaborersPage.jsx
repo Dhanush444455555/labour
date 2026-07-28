@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { socket, joinUserRoom } from '../../socket';
+import { LogOut } from 'lucide-react';
 import LaborerList from './LaborerList';
 import LaborerProfile from './LaborerProfile';
 import BookingForm from './BookingForm';
@@ -9,13 +10,14 @@ import NotificationsPage from './NotificationsPage';
 import BookingsPage from './BookingsPage';
 import HireBottomNavigation from './HireBottomNavigation';
 
-export default function HireLaborersPage({ user }) {
+export default function HireLaborersPage({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('laborers'); // 'laborers' | 'notifications' | 'bookings' | 'post_job'
   const [subView, setSubView] = useState('list'); // 'list' | 'profile' | 'booking_form'
 
   const [laborers, setLaborers] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [jobs, setJobs] = useState([]);
   const [selectedLaborer, setSelectedLaborer] = useState(null);
 
   useEffect(() => {
@@ -24,6 +26,7 @@ export default function HireLaborersPage({ user }) {
       fetchLaborers();
       fetchNotifications();
       fetchBookings();
+      fetchJobs();
     }
 
     const handleNotificationCreated = () => {
@@ -78,6 +81,15 @@ export default function HireLaborersPage({ user }) {
     }
   };
 
+  const fetchJobs = async () => {
+    try {
+      const data = await api.getHirerJobs(user?.uid);
+      setJobs(data || []);
+    } catch (err) {
+      console.error('Error fetching jobs:', err);
+    }
+  };
+
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setSubView('list');
@@ -126,10 +138,21 @@ export default function HireLaborersPage({ user }) {
     <div className="flex flex-col flex-1 w-full max-w-md mx-auto min-h-screen bg-gray-50 pb-20">
       {/* Top Header */}
       <div className="flex items-center justify-between py-3 mb-2">
-        <h1 className="text-xl font-bold text-gray-900">Hire Laborers</h1>
-        <span className="bg-green-100 text-green-800 text-[11px] font-bold px-2.5 py-1 rounded-full border border-green-200">
-          Farm Owner
-        </span>
+        <div className="flex items-center space-x-2">
+          <h1 className="text-xl font-bold text-gray-900">Hire Laborers</h1>
+          <span className="bg-green-100 text-green-800 text-[11px] font-bold px-2.5 py-1 rounded-full border border-green-200">
+            Farm Owner
+          </span>
+        </div>
+        {onLogout && (
+          <button
+            onClick={onLogout}
+            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+            title="Logout"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
       {/* Main Content Area */}
@@ -166,7 +189,7 @@ export default function HireLaborersPage({ user }) {
         )}
 
         {activeTab === 'bookings' && (
-          <BookingsPage bookings={bookings} />
+          <BookingsPage bookings={bookings} jobs={jobs} />
         )}
 
         {activeTab === 'post_job' && (
