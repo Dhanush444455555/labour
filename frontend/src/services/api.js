@@ -22,6 +22,19 @@ export const api = {
     }
     return await res.json();
   },
+  
+  adminLogin: async (phone, password) => {
+    const res = await fetch(`${API_URL}/api/auth/admin-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, password }),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Admin login failed');
+    }
+    return await res.json();
+  },
 
   updateProfile: async (uid, profileData) => {
     const res = await fetch(`${API_URL}/api/users/profile`, {
@@ -301,6 +314,69 @@ export const api = {
     getAuditLogs: async (uid) => {
       const res = await fetch(`${API_URL}/api/admin/audit-logs`, { headers: getHeaders(uid) });
       if (!res.ok) throw new Error('Failed to fetch audit logs');
+      return await res.json();
+    },
+    updateJob: async (uid, jobId, jobData) => {
+      const res = await fetch(`${API_URL}/api/admin/jobs/${jobId}`, {
+        method: 'PATCH',
+        headers: getHeaders(uid),
+        body: JSON.stringify(jobData)
+      });
+      if (!res.ok) throw new Error('Failed to update job');
+      return await res.json();
+    },
+    getSettings: async (uid) => {
+      const res = await fetch(`${API_URL}/api/admin/settings`, { headers: getHeaders(uid) });
+      if (!res.ok) throw new Error('Failed to fetch settings');
+      return await res.json();
+    },
+    updateSettings: async (uid, updates) => {
+      const res = await fetch(`${API_URL}/api/admin/settings`, {
+        method: 'PATCH',
+        headers: getHeaders(uid),
+        body: JSON.stringify(updates)
+      });
+      if (!res.ok) throw new Error('Failed to update settings');
+      return await res.json();
+    },
+    getCMS: async (uid) => {
+      const res = await fetch(`${API_URL}/api/admin/cms`, { headers: getHeaders(uid) });
+      if (!res.ok) throw new Error('Failed to fetch CMS content');
+      return await res.json();
+    },
+    createCMS: async (uid, contentData) => {
+      const res = await fetch(`${API_URL}/api/admin/cms`, {
+        method: 'POST',
+        headers: getHeaders(uid),
+        body: JSON.stringify(contentData)
+      });
+      if (!res.ok) throw new Error('Failed to create CMS content');
+      return await res.json();
+    },
+    updateCMS: async (uid, id, contentData) => {
+      const res = await fetch(`${API_URL}/api/admin/cms/${id}`, {
+        method: 'PATCH',
+        headers: getHeaders(uid),
+        body: JSON.stringify(contentData)
+      });
+      if (!res.ok) throw new Error('Failed to update CMS content');
+      return await res.json();
+    },
+    deleteCMS: async (uid, id) => {
+      const res = await fetch(`${API_URL}/api/admin/cms/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(uid)
+      });
+      if (!res.ok) throw new Error('Failed to delete CMS content');
+      return await res.json();
+    },
+    sendNotification: async (uid, notificationData) => {
+      const res = await fetch(`${API_URL}/api/admin/notifications`, {
+        method: 'POST',
+        headers: getHeaders(uid),
+        body: JSON.stringify(notificationData)
+      });
+      if (!res.ok) throw new Error('Failed to send notification');
       return await res.json();
     }
   }

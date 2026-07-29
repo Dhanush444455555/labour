@@ -119,6 +119,7 @@ export default function HireLaborersPage({ user, onLogout }) {
       });
       fetchBookings();
       fetchNotifications();
+      handleTabChange('bookings');
     } catch (err) {
       console.error('Error sending booking request:', err);
       alert('Failed to send booking request');

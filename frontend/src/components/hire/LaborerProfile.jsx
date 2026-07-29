@@ -50,6 +50,12 @@ export default function LaborerProfile({ laborer, onBack, onBookLaborer }) {
             <span className="font-bold text-gray-900">{laborer.phone}</span>
           </div>
 
+          {/* Gender */}
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+            <span className="text-gray-500 text-xs">Gender:</span>
+            <span className="font-semibold text-gray-900">{laborer.gender || 'Unspecified'}</span>
+          </div>
+
           {/* Location */}
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
             <span className="text-gray-500 text-xs">Location:</span>

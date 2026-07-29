@@ -3,7 +3,8 @@ import { useContext } from 'react';
 import { AuthContext } from '../../App';
 import { 
   LayoutDashboard, Users, UsersRound, Briefcase, 
-  CalendarCheck, AlertTriangle, ScrollText, LogOut 
+  CalendarCheck, AlertTriangle, ScrollText, LogOut,
+  Settings as SettingsIcon, FileText, Bell
 } from 'lucide-react';
 import AdminDashboard from './AdminDashboard';
 import AdminUsers from './AdminUsers';
@@ -11,6 +12,9 @@ import AdminJobs from './AdminJobs';
 import AdminBookings from './AdminBookings';
 import AdminReports from './AdminReports';
 import AdminAuditLogs from './AdminAuditLogs';
+import AdminCMS from './AdminCMS';
+import AdminSettings from './AdminSettings';
+import AdminNotifications from './AdminNotifications';
 
 export default function AdminLayout() {
   const { setUser } = useContext(AuthContext);
@@ -31,6 +35,9 @@ export default function AdminLayout() {
     { path: '/admin/bookings', label: 'Bookings', icon: <CalendarCheck size={20} /> },
     { path: '/admin/reports', label: 'Reports', icon: <AlertTriangle size={20} /> },
     { path: '/admin/audit', label: 'Audit Logs', icon: <ScrollText size={20} /> },
+    { path: '/admin/cms', label: 'CMS', icon: <FileText size={20} /> },
+    { path: '/admin/notifications', label: 'Notifications', icon: <Bell size={20} /> },
+    { path: '/admin/settings', label: 'Settings', icon: <SettingsIcon size={20} /> },
   ];
 
   return (
@@ -85,6 +92,9 @@ export default function AdminLayout() {
             <Route path="/bookings" element={<AdminBookings />} />
             <Route path="/reports" element={<AdminReports />} />
             <Route path="/audit" element={<AdminAuditLogs />} />
+            <Route path="/cms" element={<AdminCMS />} />
+            <Route path="/settings" element={<AdminSettings />} />
+            <Route path="/notifications" element={<AdminNotifications />} />
           </Routes>
         </div>
       </main>

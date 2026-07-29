@@ -11,6 +11,7 @@ export default function Login() {
   const [step, setStep] = useState('form'); // 'form' | 'location'
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [gender, setGender] = useState('Male'); // Default gender
   const [role, setRole] = useState(null); // 'laborer' | 'farmowner'
   
   const [loading, setLoading] = useState(false);
@@ -46,8 +47,8 @@ export default function Login() {
     try {
       let userData = await api.login(cleanPhone);
       
-      if (!userData.role) {
-        userData = await api.updateProfile(userData.uid, { name: name.trim(), role });
+      if (!userData.role || !userData.gender || userData.gender === 'Unspecified') {
+        userData = await api.updateProfile(userData.uid, { name: name.trim(), role, gender });
       }
       
       setTempUserData(userData);
@@ -173,6 +174,20 @@ export default function Login() {
                   required
                 />
               </div>
+            </div>
+
+            {/* Gender Selection */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Gender</label>
+              <select
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:outline-none transition-all font-medium text-gray-700"
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+              >
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
             </div>
 
             {/* Role Selection */}

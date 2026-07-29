@@ -40,6 +40,10 @@ export default function LaborerCard({ laborer, onViewDetails, onBookLaborer }) {
           <span className="font-semibold text-gray-900">{laborer.skills.slice(0, 2).join(' • ')}</span>
         </div>
         <div className="flex items-center justify-between">
+          <span className="text-gray-500">Gender:</span>
+          <span className="font-semibold text-gray-900">{laborer.gender || 'Unspecified'}</span>
+        </div>
+        <div className="flex items-center justify-between">
           <span className="text-gray-500">Experience:</span>
           <span className="font-semibold text-gray-900">{laborer.experience}</span>
         </div>

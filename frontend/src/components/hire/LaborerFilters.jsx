@@ -2,6 +2,8 @@ export default function LaborerFilters({ activeFilter, setActiveFilter }) {
   const filters = [
     { id: 'all', label: 'All' },
     { id: 'available', label: 'Available' },
+    { id: 'male', label: 'Male' },
+    { id: 'female', label: 'Female' },
     { id: 'nearby', label: 'Nearby' }
   ];
 

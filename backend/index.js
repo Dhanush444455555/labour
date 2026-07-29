@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const http = require('http');
 const { Server } = require('socket.io');
+const crypto = require('crypto');
 const { initDb, query, run, get, logAuditAction } = require('./db');
 require('dotenv').config();
 
@@ -142,10 +143,69 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Helper for verifying password
+const verifyPassword = (password, hash, salt) => {
+  return new Promise((resolve, reject) => {
+    crypto.scrypt(password, salt, 64, (err, derivedKey) => {
+      if (err) reject(err);
+      resolve(hash === derivedKey.toString('hex'));
+    });
+  });
+};
+
+// POST /api/auth/admin-login
+app.post('/api/auth/admin-login', async (req, res) => {
+  try {
+    const { phone, password } = req.body;
+    if (!phone || !password) {
+      return res.status(400).json({ error: 'Phone number and password are required' });
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+    if (cleanPhone.length !== 10) {
+      return res.status(400).json({ error: 'Please enter a valid 10-digit phone number' });
+    }
+
+    const userRecord = await get('SELECT * FROM users WHERE phone_number = ?', [cleanPhone]);
+    if (!userRecord) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    if (userRecord.role !== 'owner') {
+      return res.status(403).json({ error: 'Unauthorized: Admin access only' });
+    }
+
+    if (userRecord.status === 'BLOCKED' || userRecord.status === 'SUSPENDED') {
+      return res.status(403).json({ error: `Account is ${userRecord.status.toLowerCase()}` });
+    }
+
+    if (!userRecord.password_hash || !userRecord.password_salt) {
+      return res.status(401).json({ error: 'Account not set up for admin login' });
+    }
+
+    const isValid = await verifyPassword(password, userRecord.password_hash, userRecord.password_salt);
+    if (!isValid) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Record login activity
+    await run('INSERT INTO login_activity (user_id, success) VALUES (?, ?)', [userRecord.uid, 1]);
+
+    // Omit sensitive data before returning
+    delete userRecord.password_hash;
+    delete userRecord.password_salt;
+
+    res.json(userRecord);
+  } catch (err) {
+    console.error('Admin login error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // PUT /api/users/profile
 app.put('/api/users/profile', requireAuth, async (req, res) => {
   try {
-    const { name, role, location, experience, expected_wage, skills } = req.body;
+    const { name, role, location, experience, expected_wage, skills, gender } = req.body;
     
     let skillsJson = skills;
     if (Array.isArray(skills)) {
@@ -160,9 +220,10 @@ app.put('/api/users/profile', requireAuth, async (req, res) => {
            experience = COALESCE(?, experience), 
            expected_wage = COALESCE(?, expected_wage), 
            skills = COALESCE(?, skills),
+           gender = COALESCE(?, gender),
            updated_at = CURRENT_TIMESTAMP
        WHERE uid = ?`,
-      [name, role, location, experience, expected_wage, skillsJson, req.uid]
+      [name, role, location, experience, expected_wage, skillsJson, gender, req.uid]
     );
 
     const updatedUser = await get('SELECT * FROM users WHERE uid = ?', [req.uid]);
@@ -234,8 +295,8 @@ app.get('/api/laborers/availability', requireAuth, async (req, res) => {
 // GET /api/laborers
 app.get('/api/laborers', async (req, res) => {
   try {
-    const { search, location, availability } = req.query;
-    let sql = `SELECT id, uid, name, phone_number as phone, location, skills, experience, expected_wage as dailyWage, availability FROM users WHERE role = 'laborer'`;
+    const { search, location, availability, gender } = req.query;
+    let sql = `SELECT id, uid, name, phone_number as phone, location, skills, experience, expected_wage as dailyWage, availability, gender FROM users WHERE role = 'laborer'`;
     const params = [];
 
     if (availability) {
@@ -245,6 +306,10 @@ app.get('/api/laborers', async (req, res) => {
     if (location) {
       sql += ` AND location LIKE ?`;
       params.push(`%${location}%`);
+    }
+    if (gender && gender !== 'all') {
+      sql += ` AND gender = ?`;
+      params.push(gender);
     }
     sql += ` ORDER BY id DESC`;
 
@@ -268,6 +333,7 @@ app.get('/api/laborers', async (req, res) => {
         experience: l.experience || '',
         dailyWage: l.dailyWage || '',
         availability: l.availability || 'Available',
+        gender: l.gender || 'Unspecified',
         profileImage: 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=150&auto=format&fit=crop&q=80'
       };
     });
@@ -289,10 +355,45 @@ app.get('/api/laborers', async (req, res) => {
   }
 });
 
+// --- USER NOTIFICATIONS & CMS ---
+
+// GET /api/notifications
+app.get('/api/notifications', requireAuth, async (req, res) => {
+  try {
+    const notifs = await query('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC', [req.user.uid]);
+    res.json(notifs.rows);
+  } catch (err) {
+    console.error('Error fetching notifications:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PATCH /api/notifications/:id/read
+app.patch('/api/notifications/:id/read', requireAuth, async (req, res) => {
+  try {
+    await run('UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?', [req.params.id, req.user.uid]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/cms
+app.get('/api/cms', async (req, res) => {
+  try {
+    const content = await query('SELECT * FROM cms_content WHERE is_active = 1 ORDER BY created_at DESC');
+    res.json(content.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+
 // GET /api/laborers/:uid
 app.get('/api/laborers/:uid', async (req, res) => {
   try {
-    const l = await get('SELECT id, uid, name, phone_number as phone, location, skills, experience, expected_wage as dailyWage, availability FROM users WHERE uid = ? OR id = ?', [req.params.uid, req.params.uid]);
+    const l = await get('SELECT id, uid, name, phone_number as phone, location, skills, experience, expected_wage as dailyWage, availability, gender FROM users WHERE uid = ? OR id = ?', [req.params.uid, req.params.uid]);
     if (!l) return res.status(404).json({ error: 'Laborer not found' });
 
     let parsedSkills = [];
@@ -312,6 +413,7 @@ app.get('/api/laborers/:uid', async (req, res) => {
       experience: l.experience || '',
       dailyWage: l.dailyWage || '',
       availability: l.availability || 'Available',
+      gender: l.gender || 'Unspecified',
       profileImage: 'https://images.unsplash.com/photo-1540569014015-19a7be504e3a?w=150&auto=format&fit=crop&q=80'
     });
   } catch (err) {
@@ -778,14 +880,24 @@ app.get('/api/admin/dashboard', requireAuth, requireAdmin, async (req, res) => {
     const totalHirers = (await get("SELECT COUNT(*) as c FROM users WHERE role = 'farmowner'")).c;
     const totalJobs = (await get("SELECT COUNT(*) as c FROM jobs")).c;
     const activeJobs = (await get("SELECT COUNT(*) as c FROM jobs WHERE status = 'OPEN'")).c;
+    
+    // Direct Booking Stats
     const totalBookings = (await get("SELECT COUNT(*) as c FROM bookings")).c;
+    const pendingBookings = (await get("SELECT COUNT(*) as c FROM bookings WHERE status = 'PENDING'")).c;
+    const acceptedBookings = (await get("SELECT COUNT(*) as c FROM bookings WHERE status = 'ACCEPTED'")).c;
+    const completedBookings = (await get("SELECT COUNT(*) as c FROM bookings WHERE status = 'COMPLETED'")).c;
+    
     const pendingReports = (await get("SELECT COUNT(*) as c FROM reports WHERE status = 'OPEN'")).c;
     
     const { rows: recentUsers } = await query("SELECT uid, name, role, created_at FROM users ORDER BY created_at DESC LIMIT 5");
     const { rows: recentJobs } = await query("SELECT id, title, hirer_name, status, created_at FROM jobs ORDER BY created_at DESC LIMIT 5");
 
     res.json({
-      stats: { totalUsers, totalLaborers, totalHirers, totalJobs, activeJobs, totalBookings, pendingReports },
+      stats: { 
+        totalUsers, totalLaborers, totalHirers, totalJobs, activeJobs, 
+        totalBookings, pendingBookings, acceptedBookings, completedBookings, 
+        pendingReports 
+      },
       recentUsers,
       recentJobs
     });
@@ -909,6 +1021,139 @@ app.get('/api/admin/login-activity', requireAuth, requireAdmin, async (req, res)
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// PATCH /api/admin/jobs/:jobId - Update a job post
+app.patch('/api/admin/jobs/:jobId', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { title, location, wage, laborers_required, description } = req.body;
+    await run(
+      "UPDATE jobs SET title = ?, location = ?, wage = ?, laborers_required = ?, description = ? WHERE id = ?",
+      [title, location, wage, laborers_required, description, req.params.jobId]
+    );
+    await logAuditAction(req.uid, 'Update Job', req.params.jobId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/admin/settings - Get settings
+app.get('/api/admin/settings', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await query("SELECT * FROM settings");
+    const settingsMap = rows.reduce((acc, row) => ({ ...acc, [row.key]: row.value }), {});
+    res.json(settingsMap);
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PATCH /api/admin/settings - Update settings
+app.patch('/api/admin/settings', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const updates = req.body;
+    for (const [key, value] of Object.entries(updates)) {
+      await run("UPDATE settings SET value = ? WHERE key = ?", [value, key]);
+    }
+    await logAuditAction(req.uid, 'Update Settings', 'global');
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/admin/cms - Get all CMS content (including inactive)
+app.get('/api/admin/cms', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await query("SELECT * FROM cms_content ORDER BY created_at DESC");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/admin/cms - Create CMS content
+app.post('/api/admin/cms', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { type, title, content, is_active } = req.body;
+    await run(
+      "INSERT INTO cms_content (type, title, content, is_active) VALUES (?, ?, ?, ?)",
+      [type, title, content, is_active]
+    );
+    await logAuditAction(req.uid, 'Create CMS Content', title);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PATCH /api/admin/cms/:id - Update CMS content
+app.patch('/api/admin/cms/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { type, title, content, is_active } = req.body;
+    await run(
+      "UPDATE cms_content SET type = ?, title = ?, content = ?, is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+      [type, title, content, is_active, req.params.id]
+    );
+    await logAuditAction(req.uid, 'Update CMS Content', req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/admin/cms/:id - Delete CMS content
+app.delete('/api/admin/cms/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    await run("DELETE FROM cms_content WHERE id = ?", [req.params.id]);
+    await logAuditAction(req.uid, 'Delete CMS Content', req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/admin/notifications - Send push notification
+app.post('/api/admin/notifications', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { target_users, type, title, message } = req.body;
+    
+    let targetRole = null;
+    if (target_users === 'LABORERS') targetRole = 'laborer';
+    if (target_users === 'HIRERS') targetRole = 'farmowner';
+    
+    let sql = "SELECT uid FROM users";
+    const params = [];
+    if (targetRole) {
+      sql += " WHERE role = ?";
+      params.push(targetRole);
+    }
+    
+    const { rows: users } = await query(sql, params);
+    
+    for (const u of users) {
+      await run(
+        "INSERT INTO notifications (user_id, type, title, message) VALUES (?, ?, ?, ?)",
+        [u.uid, type, title, message]
+      );
+    }
+
+    // Emit via Socket.io
+    io.emit('notification-created', { title, message, type });
+
+    await logAuditAction(req.uid, 'Send Push Notification', target_users, { title, count: users.length });
+    res.json({ success: true, count: users.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Emit a refresh event to all clients every 24 hours (24 * 60 * 60 * 1000 ms)
+setInterval(() => {
+  io.emit('force-refresh');
+  console.log('[Socket.IO] Emitted force-refresh to all clients');
+}, 24 * 60 * 60 * 1000);
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

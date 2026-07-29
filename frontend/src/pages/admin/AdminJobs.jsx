@@ -1,12 +1,14 @@
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../App';
 import { api } from '../../services/api';
+import { Edit2, X, Check } from 'lucide-react';
 
 export default function AdminJobs() {
   const { user } = useContext(AuthContext);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [editingJob, setEditingJob] = useState(null);
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -21,6 +23,17 @@ export default function AdminJobs() {
     };
     fetchJobs();
   }, [user]);
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      await api.admin.updateJob(user.uid, editingJob.id, editingJob);
+      setJobs(jobs.map(j => j.id === editingJob.id ? editingJob : j));
+      setEditingJob(null);
+    } catch (err) {
+      alert('Failed to update job');
+    }
+  };
 
   const filteredJobs = jobs.filter(j => 
     (j.title && j.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -54,6 +67,7 @@ export default function AdminJobs() {
                 <th className="p-4 font-medium">Wage</th>
                 <th className="p-4 font-medium">Workers</th>
                 <th className="p-4 font-medium">Status</th>
+                <th className="p-4 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-sm">
@@ -73,6 +87,15 @@ export default function AdminJobs() {
                       {j.status}
                     </span>
                   </td>
+                  <td className="p-4 text-right">
+                    <button 
+                      onClick={() => setEditingJob(j)}
+                      className="text-blue-600 hover:text-blue-800 p-1"
+                      title="Edit Job"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                  </td>
                 </tr>
               ))}
               {filteredJobs.length === 0 && (
@@ -82,6 +105,93 @@ export default function AdminJobs() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Edit Job Modal */}
+      {editingJob && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg p-6 max-w-md w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">Edit Job #{editingJob.id}</h3>
+              <button onClick={() => setEditingJob(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleUpdate} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                <input 
+                  type="text" 
+                  value={editingJob.title}
+                  onChange={e => setEditingJob({...editingJob, title: e.target.value})}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                <input 
+                  type="text" 
+                  value={editingJob.location}
+                  onChange={e => setEditingJob({...editingJob, location: e.target.value})}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Wage</label>
+                  <input 
+                    type="text" 
+                    value={editingJob.wage}
+                    onChange={e => setEditingJob({...editingJob, wage: e.target.value})}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Workers Req.</label>
+                  <input 
+                    type="number" 
+                    value={editingJob.laborers_required}
+                    onChange={e => setEditingJob({...editingJob, laborers_required: parseInt(e.target.value) || 1})}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    required
+                    min="1"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea 
+                  value={editingJob.description || ''}
+                  onChange={e => setEditingJob({...editingJob, description: e.target.value})}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm h-24"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button 
+                  type="button" 
+                  onClick={() => setEditingJob(null)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 rounded-md text-sm font-medium text-white hover:bg-blue-700 flex items-center gap-2"
+                >
+                  <Check size={16} /> Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

@@ -39,6 +39,9 @@ export default function AdminDashboard() {
     { title: 'Total Jobs', value: stats.totalJobs, icon: <Briefcase className="text-yellow-500" size={32} />, bg: 'bg-yellow-50' },
     { title: 'Active Jobs', value: stats.activeJobs, icon: <Briefcase className="text-orange-500" size={32} />, bg: 'bg-orange-50' },
     { title: 'Total Bookings', value: stats.totalBookings, icon: <CalendarCheck className="text-indigo-500" size={32} />, bg: 'bg-indigo-50' },
+    { title: 'Pending Bookings', value: stats.pendingBookings, icon: <CalendarCheck className="text-orange-500" size={32} />, bg: 'bg-orange-50' },
+    { title: 'Accepted Bookings', value: stats.acceptedBookings, icon: <CalendarCheck className="text-green-500" size={32} />, bg: 'bg-green-50' },
+    { title: 'Completed Bookings', value: stats.completedBookings, icon: <CalendarCheck className="text-blue-500" size={32} />, bg: 'bg-blue-50' },
     { title: 'Pending Reports', value: stats.pendingReports, icon: <AlertTriangle className="text-red-500" size={32} />, bg: 'bg-red-50' },
   ];
 

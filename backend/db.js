@@ -115,11 +115,37 @@ const initDb = async () => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
 
+      CREATE TABLE IF NOT EXISTS direct_bookings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        owner_id TEXT NOT NULL,
+        laborer_id TEXT NOT NULL,
+        work_title TEXT NOT NULL,
+        wage TEXT NOT NULL,
+        status TEXT DEFAULT 'PENDING',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
       CREATE TABLE IF NOT EXISTS login_activity (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id TEXT NOT NULL,
         success INTEGER DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        description TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS cms_content (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        is_active INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
@@ -129,6 +155,34 @@ const initDb = async () => {
       console.log("Added status column to users table.");
     } catch (e) {
       // Column already exists
+    }
+
+    try {
+      await db.exec(`ALTER TABLE users ADD COLUMN password_hash TEXT`);
+      await db.exec(`ALTER TABLE users ADD COLUMN password_salt TEXT`);
+      console.log("Added password columns to users table.");
+    } catch (e) {
+      // Columns already exist
+    }
+
+    try {
+      await db.exec(`ALTER TABLE users ADD COLUMN gender TEXT DEFAULT 'Unspecified'`);
+      console.log("Added gender column to users table.");
+    } catch (e) {
+      // Column already exists
+    }
+
+    // Initialize default settings if empty
+    const existingSettings = await db.all(`SELECT count(*) as count FROM settings`);
+    if (existingSettings[0].count === 0) {
+      await db.run(`INSERT INTO settings (key, value, description) VALUES 
+        ('site_name', 'FarmConnect', 'Name of the application'),
+        ('maintenance_mode', 'false', 'Enable maintenance mode'),
+        ('allow_new_registrations', 'true', 'Allow new users to register'),
+        ('default_currency', 'INR', 'Default currency code'),
+        ('support_email', 'support@farmconnect.com', 'Contact email for users')
+      `);
+      console.log("Initialized default admin settings.");
     }
 
     console.log("Database initialized successfully (SQLite)");

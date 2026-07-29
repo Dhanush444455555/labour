@@ -18,6 +18,12 @@ export default function LaborerList({ laborers, onViewDetails, onBookLaborer }) 
     if (activeFilter === 'available') {
       return matchesSearch && lab.availability === 'Available';
     }
+    if (activeFilter === 'male') {
+      return matchesSearch && lab.gender === 'Male';
+    }
+    if (activeFilter === 'female') {
+      return matchesSearch && lab.gender === 'Female';
+    }
     if (activeFilter === 'nearby') {
       return matchesSearch && lab.nearby;
     }

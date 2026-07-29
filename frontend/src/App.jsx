@@ -1,18 +1,33 @@
-import { useState, createContext, useContext } from 'react';
+import { useState, createContext, useContext, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { socket } from './socket';
 import Login from './pages/Login';
 
 import LaborerDashboard from './pages/LaborerDashboard';
 import FarmOwnerDashboard from './pages/FarmOwnerDashboard';
 
 import AdminLayout from './pages/admin/AdminLayout';
+import AdminLogin from './pages/admin/AdminLogin';
 
 export const AuthContext = createContext(null);
 
 function App() {
   const { t } = useTranslation();
   const [user, setUser] = useState(null);
+
+  // Listen for force-refresh from backend
+  useEffect(() => {
+    const handleForceRefresh = () => {
+      window.location.reload();
+    };
+
+    socket.on('force-refresh', handleForceRefresh);
+
+    return () => {
+      socket.off('force-refresh', handleForceRefresh);
+    };
+  }, []);
 
   // Helper for role redirection
   const getRedirectForRole = (role) => {
@@ -25,8 +40,13 @@ function App() {
     <AuthContext.Provider value={{ user, setUser }}>
       <BrowserRouter>
         <Routes>
+          {/* Admin Login Route (Full Width, Separate from standard app) */}
+          <Route path="/admin/login" element={
+            !user ? <AdminLogin /> : (user.role === 'owner' ? <Navigate to="/admin" replace /> : <Navigate to={getRedirectForRole(user.role)} replace />)
+          } />
+
           {/* Admin Routes (Full Width) */}
-          <Route path="/admin/*" element={user && user.role === 'owner' ? <AdminLayout /> : <Navigate to="/login" replace />} />
+          <Route path="/admin/*" element={user && user.role === 'owner' ? <AdminLayout /> : <Navigate to="/admin/login" replace />} />
 
           {/* Regular App Routes (Mobile Width) */}
           <Route path="*" element={
