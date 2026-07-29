@@ -4,8 +4,10 @@ import { AuthContext } from '../App';
 import { Phone, ArrowRight, Users, Tractor, User, MapPin, Navigation, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import { joinUserRoom } from '../socket';
+import { useTranslation } from 'react-i18next';
 
 export default function Login() {
+  const { t, i18n } = useTranslation();
   const [step, setStep] = useState('form'); // 'form' | 'location'
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -26,17 +28,17 @@ export default function Login() {
     
     const cleanPhone = phone.replace(/\D/g, '').slice(-10);
     if (cleanPhone.length !== 10) {
-      setError('Please enter a valid 10-digit Indian mobile number.');
+      setError(t('login.error_phone'));
       return;
     }
     
     if (!name.trim()) {
-      setError('Please enter your full name.');
+      setError(t('login.error_name'));
       return;
     }
     
     if (!role) {
-      setError('Please select a role.');
+      setError(t('login.error_role'));
       return;
     }
 
@@ -68,7 +70,7 @@ export default function Login() {
     setLocError('');
 
     if (!navigator.geolocation) {
-      setLocError('Geolocation is not supported by your browser.');
+      setLocError(t('login.loc_error_unsupported'));
       setLocating(false);
       return;
     }
@@ -90,12 +92,12 @@ export default function Login() {
           // Finalize with updated location
           finalizeLogin({ ...tempUserData, location: city });
         } catch (err) {
-          setLocError('Could not resolve your location details.');
+          setLocError(t('login.loc_error_resolve'));
           setLocating(false);
         }
       },
       (error) => {
-        setLocError('Location permission denied or unavailable.');
+        setLocError(t('login.loc_error_denied'));
         setLocating(false);
       },
       { timeout: 10000, enableHighAccuracy: true }
@@ -112,25 +114,42 @@ export default function Login() {
   return (
     <div className="flex flex-col items-center justify-center flex-1 w-full space-y-6 animate-in fade-in zoom-in duration-500 py-6">
       
+      {/* Language Switcher */}
+      <div className="absolute top-4 right-4 bg-white rounded-lg shadow-sm border border-gray-200 p-1 flex space-x-1 z-10">
+        {['en', 'hi', 'kn'].map((lang) => (
+          <button
+            key={lang}
+            onClick={() => i18n.changeLanguage(lang)}
+            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+              i18n.language === lang 
+                ? 'bg-green-600 text-white shadow-md' 
+                : 'bg-transparent text-gray-500 hover:bg-gray-100 hover:text-gray-800'
+            }`}
+          >
+            {lang === 'en' ? 'ENG' : lang === 'hi' ? 'हिंदी' : 'ಕನ್ನಡ'}
+          </button>
+        ))}
+      </div>
+
       {step === 'form' && (
         <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-lg w-full text-center space-y-6">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">Welcome to Farm Connect</h2>
-            <p className="text-gray-500 text-sm mt-1">Enter your details to continue</p>
+            <h2 className="text-2xl font-bold text-gray-800">{t('login.welcome')}</h2>
+            <p className="text-gray-500 text-sm mt-1">{t('login.enter_details')}</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5 text-left">
             
             {/* Name Field */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">{t('login.full_name')}</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-3 flex items-center text-gray-400">
                   <User className="w-5 h-5" />
                 </span>
                 <input
                   type="text"
-                  placeholder="Enter your full name"
+                  placeholder={t('login.name_placeholder')}
                   className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:outline-none transition-all font-medium"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -141,12 +160,12 @@ export default function Login() {
 
             {/* Mobile Field */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Mobile Number</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">{t('login.mobile_number')}</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-3 flex items-center text-gray-500 font-bold">+91</span>
                 <input
                   type="tel"
-                  placeholder="Enter your 10-digit mobile number"
+                  placeholder={t('login.mobile_placeholder')}
                   maxLength={10}
                   className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:outline-none transition-all font-medium tracking-wide"
                   value={phone}
@@ -158,7 +177,7 @@ export default function Login() {
 
             {/* Role Selection */}
             <div className="pt-2">
-              <label className="block text-sm font-semibold text-gray-700 mb-3 text-center">Select Role</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-3 text-center">{t('login.select_role')}</label>
               <div className="grid grid-cols-2 gap-3">
                 <button 
                   type="button"
@@ -172,8 +191,8 @@ export default function Login() {
                   <div className={`p-2 rounded-full mb-2 ${role === 'laborer' ? 'bg-green-600 text-white' : 'bg-green-100 text-green-700'}`}>
                     <Users className="w-6 h-6" />
                   </div>
-                  <h3 className="font-bold text-gray-900 text-sm">Work as Laborer</h3>
-                  <p className="text-[10px] text-gray-500 text-center mt-1">Find farm work</p>
+                  <h3 className="font-bold text-gray-900 text-sm">{t('login.work_laborer')}</h3>
+                  <p className="text-[10px] text-gray-500 text-center mt-1">{t('login.find_work')}</p>
                 </button>
 
                 <button 
@@ -188,8 +207,8 @@ export default function Login() {
                   <div className={`p-2 rounded-full mb-2 ${role === 'farmowner' ? 'bg-amber-600 text-white' : 'bg-amber-100 text-amber-700'}`}>
                     <Tractor className="w-6 h-6" />
                   </div>
-                  <h3 className="font-bold text-gray-900 text-sm">Hire Laborers</h3>
-                  <p className="text-[10px] text-gray-500 text-center mt-1">Find workers for your farm</p>
+                  <h3 className="font-bold text-gray-900 text-sm">{t('login.hire_laborers')}</h3>
+                  <p className="text-[10px] text-gray-500 text-center mt-1">{t('login.find_workers')}</p>
                 </button>
               </div>
             </div>
@@ -201,7 +220,7 @@ export default function Login() {
               disabled={loading}
               className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center space-x-2 active:scale-95 mt-2 disabled:bg-gray-400"
             >
-              <span>{loading ? 'Processing...' : 'Continue'}</span>
+              <span>{loading ? t('login.processing') : t('login.continue')}</span>
               {!loading && <ArrowRight className="w-5 h-5" />}
             </button>
           </form>
@@ -220,15 +239,15 @@ export default function Login() {
           </div>
 
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">Detecting Location</h2>
+            <h2 className="text-2xl font-bold text-gray-800">{t('login.detecting_location')}</h2>
             <p className="text-gray-500 text-sm mt-2">
-              We need your location to show you relevant farm work and laborers in your area.
+              {t('login.location_desc')}
             </p>
           </div>
 
           {locating && (
             <p className="text-green-600 font-bold animate-pulse text-sm">
-              Please allow location access when prompted by your browser...
+              {t('login.allow_location')}
             </p>
           )}
 
@@ -245,7 +264,7 @@ export default function Login() {
               className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center space-x-2 active:scale-95 disabled:bg-green-400"
             >
               <Navigation className="w-5 h-5" />
-              <span>{locating ? 'Detecting...' : 'Try Again'}</span>
+              <span>{locating ? t('login.detecting') : t('login.try_again')}</span>
             </button>
             
             {!locating && (
@@ -253,7 +272,7 @@ export default function Login() {
                 onClick={() => finalizeLogin(tempUserData)}
                 className="w-full bg-white hover:bg-gray-50 border border-gray-200 text-gray-600 font-bold py-3.5 px-4 rounded-xl shadow-sm transition-all active:scale-95"
               >
-                Skip for now
+                {t('login.skip_for_now')}
               </button>
             )}
           </div>

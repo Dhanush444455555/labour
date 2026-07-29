@@ -93,8 +93,45 @@ const initDb = async () => {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(laborer_id, available_date)
       );
+
+      CREATE TABLE IF NOT EXISTS reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        reporter_id TEXT NOT NULL,
+        reported_id TEXT,
+        related_job_id INTEGER,
+        reason TEXT NOT NULL,
+        description TEXT,
+        status TEXT DEFAULT 'OPEN',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        resolved_at DATETIME
+      );
+
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        admin_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        target TEXT NOT NULL,
+        metadata TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS login_activity (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        success INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
     `);
-    console.log("Database initialized successfully with 7 tables (SQLite)");
+
+    // Add status column to users if it doesn't exist
+    try {
+      await db.exec(`ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'ACTIVE'`);
+      console.log("Added status column to users table.");
+    } catch (e) {
+      // Column already exists
+    }
+
+    console.log("Database initialized successfully (SQLite)");
   } catch (err) {
     console.error("Error initializing database", err);
   }
@@ -140,9 +177,21 @@ const get = async (text, params = []) => {
   }
 };
 
+const logAuditAction = async (adminId, action, target, metadata = null) => {
+  try {
+    await run(
+      `INSERT INTO audit_logs (admin_id, action, target, metadata) VALUES (?, ?, ?, ?)`,
+      [adminId, action, target, metadata ? JSON.stringify(metadata) : null]
+    );
+  } catch (err) {
+    console.error("Audit Log Error:", err);
+  }
+};
+
 module.exports = {
   initDb,
   query,
   run,
-  get
+  get,
+  logAuditAction
 };

@@ -1,6 +1,8 @@
 import { Users, Bell, Calendar, PlusCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function HireBottomNavigation({ activeTab, setActiveTab, unreadCount }) {
+  const { t } = useTranslation();
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-30 max-w-md mx-auto">
       <div className="flex justify-around items-center h-16 px-2">
@@ -14,7 +16,7 @@ export default function HireBottomNavigation({ activeTab, setActiveTab, unreadCo
           }`}
         >
           <Users className="w-5 h-5" />
-          <span className="text-xs">👥 Laborers</span>
+          <span className="text-xs">👥 {t('owner_dash.laborers')}</span>
         </button>
 
         {/* Notifications Tab */}
@@ -34,7 +36,7 @@ export default function HireBottomNavigation({ activeTab, setActiveTab, unreadCo
               </span>
             )}
           </div>
-          <span className="text-xs">🔔 Notifications</span>
+          <span className="text-xs">🔔 {t('owner_dash.notifications')}</span>
         </button>
 
         {/* Post Job Tab */}
@@ -47,7 +49,7 @@ export default function HireBottomNavigation({ activeTab, setActiveTab, unreadCo
           }`}
         >
           <PlusCircle className="w-5 h-5" />
-          <span className="text-xs">➕ Post Job</span>
+          <span className="text-xs">➕ {t('owner_dash.post_job')}</span>
         </button>
 
         {/* Bookings Tab */}
@@ -60,7 +62,7 @@ export default function HireBottomNavigation({ activeTab, setActiveTab, unreadCo
           }`}
         >
           <Calendar className="w-5 h-5" />
-          <span className="text-xs">📅 Bookings</span>
+          <span className="text-xs">📅 {t('owner_dash.bookings')}</span>
         </button>
       </div>
     </div>

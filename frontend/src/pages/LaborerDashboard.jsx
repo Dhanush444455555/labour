@@ -3,8 +3,10 @@ import { AuthContext } from '../App';
 import { LogOut, ThumbsUp, ThumbsDown, Check, X, RefreshCw, Bell, Calendar, Phone } from 'lucide-react';
 import { socket, joinUserRoom } from '../socket';
 import { api } from '../services/api';
+import { useTranslation } from 'react-i18next';
 
 export default function LaborerDashboard() {
+  const { t } = useTranslation();
   const { user, setUser } = useContext(AuthContext);
   const [availability, setAvailability] = useState('prompt'); // 'prompt' | 'available' | 'not_available'
   const [jobs, setJobs] = useState([]);
@@ -124,8 +126,8 @@ export default function LaborerDashboard() {
       {/* Top Header */}
       <div className="flex items-center justify-between mt-2">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">Hi, {user?.name || 'Laborer'}</h2>
-          <p className="text-xs text-gray-500">Laborer Dashboard</p>
+          <h2 className="text-xl font-bold text-gray-800">{t('laborer_dash.hi')}, {user?.name || t('laborer_dash.laborer')}</h2>
+          <p className="text-xs text-gray-500">{t('laborer_dash.dashboard_title')}</p>
         </div>
         <button
           onClick={() => setUser(null)}
@@ -141,14 +143,14 @@ export default function LaborerDashboard() {
         <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 shadow-sm space-y-3">
           <h3 className="font-bold text-amber-900 text-sm flex items-center">
             <Bell className="w-4 h-4 mr-1.5 text-amber-600" />
-            Direct Booking Request ({pendingBookings.length})
+            {t('laborer_dash.direct_booking')} ({pendingBookings.length})
           </h3>
           {pendingBookings.map((b) => (
             <div key={b.id} className="bg-white p-4 rounded-xl border border-amber-200 space-y-2 text-xs">
               <div className="flex justify-between items-start">
                 <div>
                   <p className="font-bold text-gray-900 text-sm">{b.work_title}</p>
-                  <p className="text-gray-500">From: {b.ownerName || 'Farm Owner'}</p>
+                  <p className="text-gray-500">{t('laborer_dash.from')}: {b.ownerName || 'Farm Owner'}</p>
                 </div>
                 <span className="font-bold text-green-700 text-sm">{b.wage}</span>
               </div>
@@ -157,13 +159,13 @@ export default function LaborerDashboard() {
                   onClick={() => handleRejectBooking(b.id)}
                   className="flex-1 bg-gray-100 hover:bg-red-50 text-red-600 font-bold py-2 rounded-lg"
                 >
-                  Reject
+                  {t('laborer_dash.reject')}
                 </button>
                 <button
                   onClick={() => handleAcceptBooking(b.id)}
                   className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg"
                 >
-                  Accept
+                  {t('laborer_dash.accept')}
                 </button>
               </div>
             </div>
@@ -175,8 +177,8 @@ export default function LaborerDashboard() {
       {availability === 'prompt' && (
         <div className="space-y-6 animate-in zoom-in duration-300 my-auto py-4">
           <div className="text-center space-y-2">
-            <h2 className="text-2xl font-bold text-gray-900">Are you available to work tomorrow?</h2>
-            <p className="text-gray-500 text-sm">Let farm owners know your availability</p>
+            <h2 className="text-2xl font-bold text-gray-900">{t('laborer_dash.available_q')}</h2>
+            <p className="text-gray-500 text-sm">{t('laborer_dash.let_owners_know')}</p>
           </div>
 
           <div className="space-y-4">
@@ -188,8 +190,8 @@ export default function LaborerDashboard() {
                 <ThumbsUp className="w-8 h-8 text-green-700" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">👍 UP HAND</h3>
-                <p className="text-green-700 text-sm font-semibold mt-0.5">Yes, I can work tomorrow</p>
+                <h3 className="text-lg font-bold text-gray-900">{t('laborer_dash.up_hand')}</h3>
+                <p className="text-green-700 text-sm font-semibold mt-0.5">{t('laborer_dash.yes_available')}</p>
               </div>
             </button>
 
@@ -201,8 +203,8 @@ export default function LaborerDashboard() {
                 <ThumbsDown className="w-8 h-8 text-red-600" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">👎 DOWN HAND</h3>
-                <p className="text-red-600 text-sm font-semibold mt-0.5">No, I am not available tomorrow</p>
+                <h3 className="text-lg font-bold text-gray-900">{t('laborer_dash.down_hand')}</h3>
+                <p className="text-red-600 text-sm font-semibold mt-0.5">{t('laborer_dash.no_available')}</p>
               </div>
             </button>
           </div>
@@ -216,8 +218,8 @@ export default function LaborerDashboard() {
             <ThumbsDown className="w-10 h-10" />
           </div>
           <div>
-            <h3 className="text-xl font-bold text-gray-900">Not Available Tomorrow</h3>
-            <p className="text-gray-500 text-sm mt-1">Farm owners have been notified that you are taking tomorrow off.</p>
+            <h3 className="text-xl font-bold text-gray-900">{t('laborer_dash.not_available_title')}</h3>
+            <p className="text-gray-500 text-sm mt-1">{t('laborer_dash.not_available_desc')}</p>
           </div>
 
           <button
@@ -225,7 +227,7 @@ export default function LaborerDashboard() {
             className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3.5 px-4 rounded-xl shadow-sm transition-all flex items-center justify-center space-x-2 text-sm"
           >
             <RefreshCw className="w-4 h-4" />
-            <span>Change Availability</span>
+            <span>{t('laborer_dash.change_availability')}</span>
           </button>
         </div>
       )}
@@ -236,25 +238,25 @@ export default function LaborerDashboard() {
           <div className="flex items-center justify-between bg-green-50 p-3.5 rounded-2xl border border-green-200">
             <div className="flex items-center space-x-2">
               <span className="w-3 h-3 bg-green-600 rounded-full animate-pulse"></span>
-              <span className="text-xs font-bold text-green-800">Status: Available Tomorrow</span>
+              <span className="text-xs font-bold text-green-800">{t('laborer_dash.status_available')}</span>
             </div>
             <button
               onClick={() => setAvailability('prompt')}
               className="text-xs font-semibold text-green-700 underline hover:text-green-900"
             >
-              Change
+              {t('laborer_dash.change')}
             </button>
           </div>
 
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Tomorrow's Work</h2>
-            <p className="text-gray-500 text-xs mt-0.5">Jobs available for tomorrow</p>
+            <h2 className="text-2xl font-bold text-gray-900">{t('laborer_dash.tomorrows_work')}</h2>
+            <p className="text-gray-500 text-xs mt-0.5">{t('laborer_dash.jobs_available')}</p>
           </div>
 
           {visibleJobs.length === 0 ? (
             <div className="bg-white p-8 rounded-2xl text-center border border-gray-200 shadow-sm space-y-2">
-              <p className="text-gray-600 font-bold text-base">No more available jobs for tomorrow.</p>
-              <p className="text-gray-400 text-xs">New work alerts from farm owners will appear here.</p>
+              <p className="text-gray-600 font-bold text-base">{t('laborer_dash.no_jobs')}</p>
+              <p className="text-gray-400 text-xs">{t('laborer_dash.new_alerts')}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -270,12 +272,12 @@ export default function LaborerDashboard() {
                   >
                     <div className="space-y-2 pb-4 border-b border-gray-100">
                       <div className="flex justify-between items-start">
-                        <span className="text-xs font-semibold text-gray-500">Owner: <strong className="text-gray-900 text-sm">{job.ownerName}</strong></span>
+                        <span className="text-xs font-semibold text-gray-500">{t('laborer_dash.owner')}: <strong className="text-gray-900 text-sm">{job.ownerName}</strong></span>
                         <span className="font-bold text-green-700 text-lg">{job.workerWage}</span>
                       </div>
 
                       <div className="text-base font-bold text-gray-900">
-                        Work: <span className="text-green-800">{job.workTitle}</span>
+                        {t('laborer_dash.work')}: <span className="text-green-800">{job.workTitle}</span>
                       </div>
                     </div>
 
@@ -287,7 +289,7 @@ export default function LaborerDashboard() {
                             className="flex-1 bg-white hover:bg-red-50 border-2 border-red-200 text-red-600 font-bold py-3 px-4 rounded-xl shadow-xs transition-all flex items-center justify-center space-x-1.5 active:scale-95 text-sm"
                           >
                             <X className="w-4 h-4" />
-                            <span>Reject</span>
+                            <span>{t('laborer_dash.reject')}</span>
                           </button>
 
                           <button
@@ -295,14 +297,14 @@ export default function LaborerDashboard() {
                             className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center space-x-1.5 active:scale-95 text-sm"
                           >
                             <Check className="w-4 h-4" />
-                            <span>Accept</span>
+                            <span>{t('laborer_dash.accept')}</span>
                           </button>
                         </>
                       ) : (
                         <div className="flex w-full space-x-2">
                           <div className="flex-1 bg-green-100 text-green-700 font-bold py-3.5 px-4 rounded-xl flex items-center justify-center space-x-2 text-sm border border-green-200">
                             <Check className="w-4 h-4" />
-                            <span>Accepted</span>
+                            <span>{t('laborer_dash.accepted')}</span>
                           </div>
                           {job.ownerPhone && (
                             <a 
@@ -310,7 +312,7 @@ export default function LaborerDashboard() {
                               className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center space-x-1.5 text-sm"
                             >
                               <Phone className="w-4 h-4" />
-                              <span>Call Owner</span>
+                              <span>{t('laborer_dash.call_owner')}</span>
                             </a>
                           )}
                         </div>

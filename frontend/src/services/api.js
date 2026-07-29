@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5001`;
 
 const getHeaders = (uid) => {
   const headers = { 'Content-Type': 'application/json' };
@@ -218,5 +218,90 @@ export const api = {
     });
     if (!res.ok) return { success: false };
     return await res.json();
+  },
+
+  // ==========================
+  // Admin & Owner Panel APIs
+  // ==========================
+  admin: {
+    setupOwner: async (uid, secret) => {
+      const res = await fetch(`${API_URL}/api/admin/setup-owner`, {
+        method: 'POST',
+        headers: getHeaders(uid),
+        body: JSON.stringify({ secret })
+      });
+      if (!res.ok) throw new Error('Setup failed');
+      return await res.json();
+    },
+
+    getDashboard: async (uid) => {
+      const res = await fetch(`${API_URL}/api/admin/dashboard`, {
+        headers: getHeaders(uid)
+      });
+      if (!res.ok) throw new Error('Not authorized');
+      return await res.json();
+    },
+
+    getActiveUsers: async (uid) => {
+      const res = await fetch(`${API_URL}/api/admin/active-users`, { headers: getHeaders(uid) });
+      if (!res.ok) throw new Error('Failed to fetch active users');
+      return await res.json();
+    },
+
+    getLoginActivity: async (uid) => {
+      const res = await fetch(`${API_URL}/api/admin/login-activity`, { headers: getHeaders(uid) });
+      if (!res.ok) throw new Error('Failed to fetch login activity');
+      return await res.json();
+    },
+
+    getUsers: async (uid, role = '') => {
+      const url = role ? `${API_URL}/api/admin/users?role=${role}` : `${API_URL}/api/admin/users`;
+      const res = await fetch(url, { headers: getHeaders(uid) });
+      if (!res.ok) throw new Error('Failed to fetch users');
+      return await res.json();
+    },
+
+    updateUserStatus: async (uid, userId, status) => {
+      const res = await fetch(`${API_URL}/api/admin/users/${userId}/status`, {
+        method: 'PATCH',
+        headers: getHeaders(uid),
+        body: JSON.stringify({ status })
+      });
+      if (!res.ok) throw new Error('Failed to update status');
+      return await res.json();
+    },
+
+    getJobs: async (uid) => {
+      const res = await fetch(`${API_URL}/api/admin/jobs`, { headers: getHeaders(uid) });
+      if (!res.ok) throw new Error('Failed to fetch jobs');
+      return await res.json();
+    },
+
+    getBookings: async (uid) => {
+      const res = await fetch(`${API_URL}/api/admin/bookings`, { headers: getHeaders(uid) });
+      if (!res.ok) throw new Error('Failed to fetch bookings');
+      return await res.json();
+    },
+
+    getReports: async (uid) => {
+      const res = await fetch(`${API_URL}/api/admin/reports`, { headers: getHeaders(uid) });
+      if (!res.ok) throw new Error('Failed to fetch reports');
+      return await res.json();
+    },
+
+    resolveReport: async (uid, reportId) => {
+      const res = await fetch(`${API_URL}/api/admin/reports/${reportId}/resolve`, {
+        method: 'PATCH',
+        headers: getHeaders(uid)
+      });
+      if (!res.ok) throw new Error('Failed to resolve report');
+      return await res.json();
+    },
+
+    getAuditLogs: async (uid) => {
+      const res = await fetch(`${API_URL}/api/admin/audit-logs`, { headers: getHeaders(uid) });
+      if (!res.ok) throw new Error('Failed to fetch audit logs');
+      return await res.json();
+    }
   }
 };

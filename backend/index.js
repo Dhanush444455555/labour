@@ -4,7 +4,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const http = require('http');
 const { Server } = require('socket.io');
-const { initDb, query, run, get } = require('./db');
+const { initDb, query, run, get, logAuditAction } = require('./db');
 require('dotenv').config();
 
 const app = express();
@@ -36,16 +36,41 @@ const io = new Server(server, {
 initDb();
 
 // Auth Middleware
-const requireAuth = (req, res, next) => {
+const requireAuth = async (req, res, next) => {
   const uid = req.headers['x-user-uid'];
   if (!uid) {
     return res.status(401).json({ error: 'Unauthorized: Missing UID header' });
   }
-  req.uid = uid;
-  next();
+  
+  try {
+    const user = await get('SELECT * FROM users WHERE uid = ?', [uid]);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized: User not found' });
+    }
+    if (user.status === 'BLOCKED' || user.status === 'SUSPENDED') {
+      return res.status(403).json({ error: `Account is ${user.status.toLowerCase()}` });
+    }
+    req.uid = uid;
+    req.user = user;
+    next();
+  } catch (err) {
+    console.error('Auth error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Admin Middleware
+const requireAdmin = (req, res, next) => {
+  if (req.user && req.user.role === 'owner') {
+    next();
+  } else {
+    res.status(403).json({ error: 'Forbidden: Admin access required' });
+  }
 };
 
 // Socket.IO Room Management
+const activeUsers = new Map();
+
 io.on('connection', (socket) => {
   console.log('[Socket.IO] Client connected:', socket.id);
 
@@ -54,11 +79,13 @@ io.on('connection', (socket) => {
       const cleanUid = String(uid);
       socket.join(`user_${cleanUid}`);
       socket.join(`hirer_${cleanUid}`);
+      activeUsers.set(socket.id, cleanUid);
       console.log(`[Socket.IO] Socket ${socket.id} joined user_${cleanUid} & hirer_${cleanUid}`);
     }
   });
 
   socket.on('disconnect', () => {
+    activeUsers.delete(socket.id);
     console.log('[Socket.IO] Client disconnected:', socket.id);
   });
 });
@@ -101,6 +128,12 @@ app.post('/api/auth/login', async (req, res) => {
       await run('INSERT INTO users (uid, phone_number) VALUES (?, ?)', [cleanPhone, cleanPhone]);
       userRecord = await get('SELECT * FROM users WHERE uid = ?', [cleanPhone]);
     }
+
+    if (userRecord.status === 'BLOCKED' || userRecord.status === 'SUSPENDED') {
+      return res.status(403).json({ error: `Account is ${userRecord.status.toLowerCase()}` });
+    }
+
+    await run('INSERT INTO login_activity (user_id, success) VALUES (?, ?)', [userRecord.uid, 1]);
 
     res.json(userRecord);
   } catch (err) {
@@ -709,6 +742,170 @@ app.put('/api/notifications/read-all', requireAuth, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==========================================
+// 7. ADMIN & OWNER PANEL APIS
+// ==========================================
+
+// POST /api/admin/setup-owner - Secret endpoint to set the first owner
+app.post('/api/admin/setup-owner', requireAuth, async (req, res) => {
+  try {
+    const { secret } = req.body;
+    const adminSecret = process.env.ADMIN_SECRET_KEY;
+    
+    if (!adminSecret || secret !== adminSecret) {
+      return res.status(403).json({ error: 'Invalid or missing admin secret' });
+    }
+
+    await run("UPDATE users SET role = 'owner' WHERE uid = ?", [req.uid]);
+    await logAuditAction(req.uid, 'Setup Owner', req.uid, { message: 'First owner account initialized' });
+    
+    res.json({ success: true, message: 'You are now an Owner!' });
+  } catch (err) {
+    console.error('Setup owner error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/admin/dashboard - Aggregated stats
+app.get('/api/admin/dashboard', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const totalUsers = (await get("SELECT COUNT(*) as c FROM users")).c;
+    const totalLaborers = (await get("SELECT COUNT(*) as c FROM users WHERE role = 'laborer'")).c;
+    const totalHirers = (await get("SELECT COUNT(*) as c FROM users WHERE role = 'farmowner'")).c;
+    const totalJobs = (await get("SELECT COUNT(*) as c FROM jobs")).c;
+    const activeJobs = (await get("SELECT COUNT(*) as c FROM jobs WHERE status = 'OPEN'")).c;
+    const totalBookings = (await get("SELECT COUNT(*) as c FROM bookings")).c;
+    const pendingReports = (await get("SELECT COUNT(*) as c FROM reports WHERE status = 'OPEN'")).c;
+    
+    const { rows: recentUsers } = await query("SELECT uid, name, role, created_at FROM users ORDER BY created_at DESC LIMIT 5");
+    const { rows: recentJobs } = await query("SELECT id, title, hirer_name, status, created_at FROM jobs ORDER BY created_at DESC LIMIT 5");
+
+    res.json({
+      stats: { totalUsers, totalLaborers, totalHirers, totalJobs, activeJobs, totalBookings, pendingReports },
+      recentUsers,
+      recentJobs
+    });
+  } catch (err) {
+    console.error('Admin dashboard error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/admin/users - List all users
+app.get('/api/admin/users', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { role } = req.query;
+    let sql = "SELECT id, uid, name, phone_number, role, location, status, created_at FROM users";
+    const params = [];
+    if (role) {
+      sql += " WHERE role = ?";
+      params.push(role);
+    }
+    sql += " ORDER BY id DESC";
+    const { rows } = await query(sql, params);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PATCH /api/admin/users/:uid/status
+app.patch('/api/admin/users/:uid/status', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { status } = req.body; // 'ACTIVE', 'SUSPENDED', 'BLOCKED'
+    if (!['ACTIVE', 'SUSPENDED', 'BLOCKED'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+    await run("UPDATE users SET status = ? WHERE uid = ?", [status, req.params.uid]);
+    await logAuditAction(req.uid, 'Change User Status', req.params.uid, { newStatus: status });
+    res.json({ success: true, status });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/admin/jobs
+app.get('/api/admin/jobs', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await query("SELECT * FROM jobs ORDER BY created_at DESC");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/admin/bookings
+app.get('/api/admin/bookings', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await query("SELECT * FROM bookings ORDER BY created_at DESC");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/admin/reports
+app.get('/api/admin/reports', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await query("SELECT * FROM reports ORDER BY created_at DESC");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PATCH /api/admin/reports/:id/resolve
+app.patch('/api/admin/reports/:id/resolve', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    await run("UPDATE reports SET status = 'RESOLVED', resolved_at = CURRENT_TIMESTAMP WHERE id = ?", [req.params.id]);
+    await logAuditAction(req.uid, 'Resolve Report', req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/admin/audit-logs
+app.get('/api/admin/audit-logs', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await query("SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 100");
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/admin/active-users
+app.get('/api/admin/active-users', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const uniqueUids = [...new Set(activeUsers.values())];
+    if (uniqueUids.length === 0) {
+      return res.json([]);
+    }
+    const placeholders = uniqueUids.map(() => '?').join(',');
+    const { rows } = await query(`SELECT uid, name, phone_number, role, status FROM users WHERE uid IN (${placeholders})`, uniqueUids);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/admin/login-activity
+app.get('/api/admin/login-activity', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT l.*, u.name, u.phone_number 
+      FROM login_activity l 
+      LEFT JOIN users u ON l.user_id = u.uid 
+      ORDER BY l.created_at DESC 
+      LIMIT 100
+    `);
+    res.json(rows);
+  } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }
 });

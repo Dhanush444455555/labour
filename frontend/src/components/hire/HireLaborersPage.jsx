@@ -9,8 +9,10 @@ import WorkAlertForm from './WorkAlertForm';
 import NotificationsPage from './NotificationsPage';
 import BookingsPage from './BookingsPage';
 import HireBottomNavigation from './HireBottomNavigation';
+import { useTranslation } from 'react-i18next';
 
 export default function HireLaborersPage({ user, onLogout }) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('laborers'); // 'laborers' | 'notifications' | 'bookings' | 'post_job'
   const [subView, setSubView] = useState('list'); // 'list' | 'profile' | 'booking_form'
 
@@ -139,9 +141,9 @@ export default function HireLaborersPage({ user, onLogout }) {
       {/* Top Header */}
       <div className="flex items-center justify-between py-3 mb-2">
         <div className="flex items-center space-x-2">
-          <h1 className="text-xl font-bold text-gray-900">Hire Laborers</h1>
+          <h1 className="text-xl font-bold text-gray-900">{t('owner_dash.hire_laborers')}</h1>
           <span className="bg-green-100 text-green-800 text-[11px] font-bold px-2.5 py-1 rounded-full border border-green-200">
-            Farm Owner
+            {t('owner_dash.farm_owner')}
           </span>
         </div>
         {onLogout && (
