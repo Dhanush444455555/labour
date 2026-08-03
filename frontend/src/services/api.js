@@ -57,6 +57,31 @@ export const api = {
     return await res.json();
   },
 
+  sendVerificationEmail: async (uid) => {
+    const res = await fetch(`${API_URL}/api/auth/send-verification`, {
+      method: 'POST',
+      headers: getHeaders(uid)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to send verification email');
+    }
+    return await res.json();
+  },
+
+  verifyEmail: async (uid, otp) => {
+    const res = await fetch(`${API_URL}/api/auth/verify-email`, {
+      method: 'POST',
+      headers: getHeaders(uid),
+      body: JSON.stringify({ otp })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to verify email');
+    }
+    return await res.json();
+  },
+
   // Laborer Availability
   setAvailability: async (uid, date, status) => {
     const res = await fetch(`${API_URL}/api/laborers/availability`, {

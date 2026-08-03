@@ -1,7 +1,7 @@
 import { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../App';
-import { Phone, ArrowRight, Users, Tractor, User, MapPin, Navigation, Loader2 } from 'lucide-react';
+import { Phone, ArrowRight, Users, Tractor, User, MapPin, Navigation, Loader2, Mail } from 'lucide-react';
 import { api } from '../services/api';
 import { joinUserRoom } from '../socket';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +10,7 @@ export default function Login() {
   const { t, i18n } = useTranslation();
   const [step, setStep] = useState('form'); // 'form' | 'location'
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [gender, setGender] = useState('Male'); // Default gender
   const [role, setRole] = useState(null); // 'laborer' | 'farmowner'
@@ -38,6 +39,11 @@ export default function Login() {
       return;
     }
     
+    if (!email.trim() || !email.includes('@')) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    
     if (!role) {
       setError(t('login.error_role'));
       return;
@@ -48,7 +54,7 @@ export default function Login() {
       let userData = await api.login(cleanPhone);
       
       if (!userData.role || !userData.gender || userData.gender === 'Unspecified') {
-        userData = await api.updateProfile(userData.uid, { name: name.trim(), role, gender });
+        userData = await api.updateProfile(userData.uid, { name: name.trim(), email: email.trim(), role, gender });
       }
       
       setTempUserData(userData);
@@ -86,15 +92,21 @@ export default function Login() {
           const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
           const data = await res.json();
           
-          const city = data.address.city || data.address.town || data.address.village || data.address.county || 'Unknown Location';
+          let city = 'Unknown Location';
+          if (data && data.address) {
+            city = data.address.city || data.address.town || data.address.village || data.address.county || 'Unknown Location';
+          }
           
           await api.updateProfile(tempUserData.uid, { location: city });
           
           // Finalize with updated location
           finalizeLogin({ ...tempUserData, location: city });
         } catch (err) {
-          setLocError(t('login.loc_error_resolve'));
-          setLocating(false);
+          console.error("Location resolution error:", err);
+          // Fallback to Unknown Location on network error or other failure
+          const fallbackCity = 'Unknown Location';
+          await api.updateProfile(tempUserData.uid, { location: fallbackCity }).catch(() => {});
+          finalizeLogin({ ...tempUserData, location: fallbackCity });
         }
       },
       (error) => {
@@ -154,6 +166,24 @@ export default function Login() {
                   className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:outline-none transition-all font-medium"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Email Field */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Email Address</label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-3 flex items-center text-gray-400">
+                  <Mail className="w-5 h-5" />
+                </span>
+                <input
+                  type="email"
+                  placeholder="your.email@example.com"
+                  className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:outline-none transition-all font-medium"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
               </div>

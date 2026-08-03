@@ -7,6 +7,7 @@ const { Server } = require('socket.io');
 const crypto = require('crypto');
 const { initDb, query, run, get, logAuditAction } = require('./db');
 require('dotenv').config();
+const nodemailer = require('nodemailer');
 
 const app = express();
 
@@ -205,7 +206,7 @@ app.post('/api/auth/admin-login', async (req, res) => {
 // PUT /api/users/profile
 app.put('/api/users/profile', requireAuth, async (req, res) => {
   try {
-    const { name, role, location, experience, expected_wage, skills, gender } = req.body;
+    const { name, role, location, experience, expected_wage, skills, gender, email } = req.body;
     
     let skillsJson = skills;
     if (Array.isArray(skills)) {
@@ -221,15 +222,76 @@ app.put('/api/users/profile', requireAuth, async (req, res) => {
            expected_wage = COALESCE(?, expected_wage), 
            skills = COALESCE(?, skills),
            gender = COALESCE(?, gender),
+           email = COALESCE(?, email),
            updated_at = CURRENT_TIMESTAMP
        WHERE uid = ?`,
-      [name, role, location, experience, expected_wage, skillsJson, gender, req.uid]
+      [name, role, location, experience, expected_wage, skillsJson, gender, email, req.uid]
     );
 
     const updatedUser = await get('SELECT * FROM users WHERE uid = ?', [req.uid]);
     res.json(updatedUser);
   } catch (err) {
     console.error('Profile update error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/auth/send-verification
+app.post('/api/auth/send-verification', requireAuth, async (req, res) => {
+  try {
+    const user = await get('SELECT * FROM users WHERE uid = ?', [req.uid]);
+    if (!user || !user.email) {
+      return res.status(400).json({ error: 'User not found or no email associated' });
+    }
+    
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await run('UPDATE users SET email_verification_token = ? WHERE uid = ?', [otp, req.uid]);
+    
+    // For development, log to console
+    console.log('\\n--- EMAIL VERIFICATION ---');
+    console.log(`To verify ${user.email}, your OTP is: ${otp}`);
+    console.log('--------------------------\\n');
+    
+    // Attempt to send if SMTP is configured
+    if (process.env.SMTP_HOST) {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT || 587,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS
+        }
+      });
+      await transporter.sendMail({
+        from: '"FarmConnect Support" <support@farmconnect.com>',
+        to: user.email,
+        subject: 'Verify your FarmConnect Email',
+        text: `Please verify your email using this OTP: ${otp}`
+      });
+    }
+    
+    res.json({ message: 'Verification email sent' });
+  } catch (err) {
+    console.error('Send verification error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/auth/verify-email
+app.post('/api/auth/verify-email', requireAuth, async (req, res) => {
+  try {
+    const { otp } = req.body;
+    if (!otp) return res.status(400).json({ error: 'OTP is required' });
+    
+    const user = await get('SELECT * FROM users WHERE uid = ?', [req.uid]);
+    if (!user || user.email_verification_token !== otp) {
+      return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+    
+    await run('UPDATE users SET email_verified = 1, email_verification_token = NULL WHERE uid = ?', [req.uid]);
+    res.json({ message: 'Email verified successfully' });
+  } catch (err) {
+    console.error('Verify email error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

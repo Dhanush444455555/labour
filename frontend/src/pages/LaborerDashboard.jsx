@@ -4,6 +4,7 @@ import { LogOut, ThumbsUp, ThumbsDown, Check, X, RefreshCw, Bell, Calendar, Phon
 import { socket, joinUserRoom } from '../socket';
 import { api } from '../services/api';
 import { useTranslation } from 'react-i18next';
+import EmailVerificationBanner from '../components/EmailVerificationBanner';
 
 export default function LaborerDashboard() {
   const { t } = useTranslation();
@@ -137,6 +138,8 @@ export default function LaborerDashboard() {
           <LogOut className="w-5 h-5" />
         </button>
       </div>
+
+      <EmailVerificationBanner />
 
       {/* DIRECT BOOKING REQUESTS RECEIVED */}
       {pendingBookings.length > 0 && (

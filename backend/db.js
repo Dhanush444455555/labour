@@ -172,6 +172,15 @@ const initDb = async () => {
       // Column already exists
     }
 
+    try {
+      await db.exec(`ALTER TABLE users ADD COLUMN email TEXT UNIQUE`);
+      await db.exec(`ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0`);
+      await db.exec(`ALTER TABLE users ADD COLUMN email_verification_token TEXT`);
+      console.log("Added email columns to users table.");
+    } catch (e) {
+      // Columns already exist
+    }
+
     // Initialize default settings if empty
     const existingSettings = await db.all(`SELECT count(*) as count FROM settings`);
     if (existingSettings[0].count === 0) {
