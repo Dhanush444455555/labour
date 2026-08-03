@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: farmconnect-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: NODE_ENV
+        value: production
+      - key: ADMIN_SECRET_KEY
+        generateValue: true
